@@ -59,6 +59,8 @@ if (NOT CMAKE_LIBRARY_ARCHITECTURE)
 	endif()
 endif()
 
+set_property(TARGET ${PLUGIN_NAME} PROPERTY CXX_STANDARD 17)
+
 #Libraries and compiler options
 if(MSVC)
 	target_link_libraries(${PLUGIN_NAME} ${GUI_BIN_DIR}/open-ephys.lib)
