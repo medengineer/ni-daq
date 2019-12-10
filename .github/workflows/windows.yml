@@ -1,0 +1,60 @@
+name: Windows_Test
+
+on: [push]
+
+jobs:
+
+  build-windows:
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-latest]
+    
+    steps:
+    - uses: actions/checkout@v1
+    - name: setup
+      env: 
+        package: "open-ephys-lib"
+        version: "0.4.5" #TODO: Need to automatically pull this from tag
+      run: |
+        cd ../../
+        git clone https://github.com/open-ephys/plugin-GUI.git
+        cd plugin-GUI/Build
+        cmake -G "Visual Studio 16 2019" -A x64 .. 
+        mkdir Release && cd Release
+        curl -L "https://dl.bintray.com/oepavel/plugin-GUI-libraries/${package}-${version}.7z" -o $package.7z
+        7z e $package.7z 
+      shell: bash
+    - name: configure
+      run: |
+        cd Build
+        cmake -G "Visual Studio 16 2019" -A x64 .. 
+      shell: bash
+    - name: Setup MSBuild.exe
+      uses: warrenbuckley/Setup-MSBuild@v1
+    - name: build
+      run: |
+        dir ..
+        cd Build
+        msbuild INSTALL.vcxproj -p:Configuration=Release -p:Platform=x64
+      shell: cmd
+#    - name: test
+#      run: cd build && ctest
+    - name: deploy
+      env:
+        bintrayUser: ${{ secrets.bintrayUsername }}
+        bintrayApiKey: ${{ secrets.bintrayApiKey }}
+        build_dir: "Build/Release"
+        filename: "ni-daq"
+        repo: "ni-daq"
+        package: "ni-daq-for-windows"
+        version: "0.4.5.1" #TODO: Automatically pull this value from latest tag
+      run: |
+        user_info="$bintrayUser:$bintrayApiKey"
+        cd $build_dir
+        zip=${package}-${version}.7z
+        7z a $zip $filename.dll
+        curl -T $zip --user $user_info https://api.bintray.com/content/$bintrayUser/$repo/$package/$version/$zip
+        curl -X POST --user $user_info https://api.bintray.com/content/$bintrayUser/$repo/$package/$version/publish
+      shell: bash
